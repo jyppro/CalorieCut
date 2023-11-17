@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>건강한 식단 계획</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+
+        header {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 1em;
+        }
+
+        main {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+		
+		.food-item {
+			display: flex;
+			align-items: center;
+			margin-bottom: 20px;
+			border: 1px solid #ccc;
+			border-radius: 8px;
+			padding: 10px;
+		}
+
+		.food-image {
+			width: 100px;
+			height: 100px;
+			object-fit: cover;
+			border-radius: 50%;
+			margin-right: 20px;
+		}
+
+		.food-details {
+			flex: 1;
+		}
+		
+		.loading {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.8);
+			z-index: 9999;
+			justify-content: center;
+			align-items: center;
+			flex-direction: column; /* 요소들을 세로로 배치 */
+		}
+
+		.loading p {
+			font-size: 20px;
+			margin-bottom: 20px;
+		}
+
+		.progress-bar {
+			width: 50%;
+			max-width: 300px;
+			height: 20px;
+			background-color: #ddd;
+			border-radius: 10px;
+			overflow: hidden;
+			margin-top: 10px; /* 텍스트와 간격 조정 */
+		}
+
+		.progress-bar-fill {
+			height: 100%;
+			background-color: #4caf50;
+			width: 0;
+			transition: width 0.3s ease-in-out;
+		}
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>건강한 식단 계획</h1>
+    </header>
+    <main>
+    <form id="calorieForm">
+        <label for="calories">하루 목표 칼로리 입력:</label>
+        <input type="number" id="calories" name="calories" placeholder="칼로리를 입력하세요" required>
+        <button type="submit">식단 생성하기</button>
+    </form>
+	
+	<div class="loading" id="loading">
+    <p>식단을 생성 중입니다...</p>
+    <div class="progress-bar" id="progressBar">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+    </div>
+</div>
+
+
+    <div class="result" id="result">
+        <!-- 결과가 이곳에 표시됩니다. -->
+    </div>
+</main>
+
+<script>
+    document.getElementById('calorieForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        generateDiet();
+    });
+	
+	function renderFoods(foods) {
+    return foods.map(food => `
+        <div class="food-item">
+            <img src="${food.ATT_FILE_NO_MAIN}" alt="${food.RCP_NM}" class="food-image">
+            <div class="food-details">
+                <h3>${food.RCP_NM}</h3>
+                <p>열량: ${food.INFO_ENG}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+    function generateDiet() {
+        const caloriesInput = document.getElementById('calories');
+        const totalCalories = caloriesInput.value;
+
+        const breakfastCalories = Math.round(totalCalories * 0.25);
+        const lunchCalories = Math.round(totalCalories * 0.4);
+        const dinnerCalories = Math.round(totalCalories * 0.35);
+		
+		const loading = document.getElementById('loading');
+		const progressBarFill = document.getElementById('progressBarFill');
+		loading.style.display = 'flex'; // 로딩 화면 표시
+
+        fetch('/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `calories=${totalCalories}`
+        })
+        .then(response => response.json())
+        .then(data => {
+		const resultDiv = document.getElementById('result');
+		resultDiv.innerHTML = `
+			<div class="meal">
+				<h2>아침</h2>
+				<ul>
+					${renderFoods(data.breakfast_foods)}
+				</ul>
+			</div>
+			<div class="meal">
+				<h2>점심</h2>
+				<ul>
+					${renderFoods(data.lunch_foods)}
+				</ul>
+			</div>
+			<div class="meal">
+				<h2>저녁</h2>
+				<ul>
+					${renderFoods(data.dinner_foods)}
+				</ul>
+			</div>
+		`;
+		loading.style.display = 'none'; // 로딩 화면 숨기기
+	})
+
+        .catch(error => console.error('Error:', error));
+		
+		// 프로그래스 바 채우기
+		let progress = 0;
+		const interval = setInterval(() => {
+			progress += 1;
+			progressBarFill.style.width = `${progress}%`;
+			if (progress >= 100) {
+				clearInterval(interval);
+			}
+		}, 30);
+    }
+</script>
+</body>
+</html>
